@@ -1,0 +1,12 @@
+orginal: 123333333333
+com:
+  mihone:
+    first: test
+    second: dev
+  bladeono:
+    second: bbb
+spring:
+  redis:
+    url: 192.168.3.17
+    port: 6379
+    password: newpass
