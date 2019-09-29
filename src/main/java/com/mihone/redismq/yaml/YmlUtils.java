@@ -31,7 +31,7 @@ public class YmlUtils {
      * @author mihone
      * @date 2019/9/28 19:55
      */
-    public static Object getValue(String key) {
+    public static Object getValue(final String key) {
         if (!key.matches("[a-zA-Z.-]+")) {
             throw new IllegalArgumentException("key is invalid");
         }
