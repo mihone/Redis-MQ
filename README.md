@@ -15,7 +15,7 @@
 
 ```xml
 <dependency>
-    <groupId>com.mihone</groupId>
+    <groupId>com.github.mihone</groupId>
     <artifactId>redis-mq</artifactId>
     <version>0.1</version>
 </dependency>
