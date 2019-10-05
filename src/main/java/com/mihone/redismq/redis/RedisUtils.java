@@ -5,9 +5,8 @@ import com.mihone.redismq.config.RedisPoolConfig;
 import com.mihone.redismq.yaml.YmlUtils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.Protocol;
 
-public class RedisUtils {
+public final class RedisUtils {
     private RedisUtils() {
     }
 
@@ -21,6 +20,15 @@ public class RedisUtils {
         return RedisPool.pool.getResource();
     }
 
+    public static String getUrl(){
+        return RedisPool.CONFIG.getUrl();
+    }
+    public static int getPort(){
+        return RedisPool.CONFIG.getPort();
+    }
+    public static String getPassword(){
+        return RedisPool.CONFIG.getPassword();
+    }
     private static final class RedisPool {
         private static final RedisPoolConfig CONFIG = new RedisPoolConfig();
 

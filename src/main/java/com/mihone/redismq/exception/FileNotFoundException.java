@@ -1,6 +1,6 @@
 package com.mihone.redismq.exception;
 
-public class FileNotFoundException extends RuntimeException{
+public class FileNotFoundException extends BaseException {
     public FileNotFoundException() {
     }
 

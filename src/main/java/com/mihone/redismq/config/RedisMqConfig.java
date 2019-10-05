@@ -1,14 +1,16 @@
 package com.mihone.redismq.config;
 
-import com.mihone.redismq.redis.RedisUtils;
 import com.mihone.redismq.yaml.YmlUtils;
 
 public class RedisMqConfig {
-    public static final int DEFAULT_TIMEOUT = 10;
+    private  static final int DEFAULT_TIMEOUT = 10;
     private int timeout = DEFAULT_TIMEOUT;
 
     public int getTimeout() {
         return timeout;
+    }
+    public int getDefaultTimeout() {
+        return DEFAULT_TIMEOUT;
     }
 
     public void setTimeout(int timeout) {
@@ -16,8 +18,8 @@ public class RedisMqConfig {
     }
 
     static {
-        Object timeout = YmlUtils.getValue("spring.redis.mq.timeout");
-        if(timeout!=null){
+        Object timeout = YmlUtils.getValue("redis.mq.timeout");
+        if (timeout != null) {
             timeout = Integer.parseInt(timeout.toString());
         }
     }

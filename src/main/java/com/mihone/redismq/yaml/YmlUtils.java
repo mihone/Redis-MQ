@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
-public class YmlUtils {
+public final class YmlUtils {
     private static final HashMap<String, Object> basicMap = new HashMap<>();
     private static final HashMap<String, Object> extendMap = new HashMap<>();
 
@@ -64,8 +64,6 @@ public class YmlUtils {
             }
             return true;
         }
-
-
         return false;
     }
 
