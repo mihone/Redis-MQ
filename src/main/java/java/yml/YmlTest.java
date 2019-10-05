@@ -1,4 +1,4 @@
-package yml;
+package java.yml;
 
 import com.mihone.redismq.yaml.YmlUtils;
 import org.junit.Test;
