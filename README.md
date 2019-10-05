@@ -34,7 +34,7 @@ redis.password=newpass
 ##### 3、启动类添加代码
 
 ```java
-RedisMQ.start(bean-> BeanUtils.getBean(bean),WebstudyApplication.class);
+RedisMQ.start(bean-> BeanUtils.getBean(bean),RedisMQApplication.class);
 ```
 
 ```java
