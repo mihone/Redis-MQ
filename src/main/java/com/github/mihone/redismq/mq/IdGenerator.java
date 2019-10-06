@@ -8,6 +8,12 @@ public class IdGenerator {
     private static final long SEQUENCE_LENGTH = 22;
     private static final long MAX_SEQUENCE = -1L ^ (-1L << SEQUENCE_LENGTH);
 
+    /**
+     * Generate Message id
+     * @return id
+     * @author mihone
+     * @since 2019/10/6
+     */
     public static synchronized long generateId() {
         long nowTime = getNowTime();
         if (nowTime < lastTime) {

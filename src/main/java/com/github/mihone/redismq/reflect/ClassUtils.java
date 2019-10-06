@@ -18,8 +18,10 @@ public final class ClassUtils {
     /**
      * Get all classes by recursive under the dictionary which the given class in
      *
+     * @param clazz class in the root dictionary
+     * @return classes all in the root dictionary
      * @author mihone
-     * @date 2019/10/2
+     * @since 2019/10/2
      */
     public static <T> List<Class<?>> getAllClasses(Class<T> clazz) {
         String root = clazz.getName().substring(0, clazz.getName().lastIndexOf(clazz.getSimpleName()) - 1);

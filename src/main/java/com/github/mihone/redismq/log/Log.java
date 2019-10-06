@@ -3,7 +3,12 @@ package com.github.mihone.redismq.log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * Log definition
+ *
+ * @author mihone
+ * @since 2019/10/6
+ */
 public class Log {
     private Logger logger;
 

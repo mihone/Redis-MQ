@@ -2,11 +2,10 @@ package com.github.mihone.redismq.mq;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.mihone.redismq.cache.Cache;
+import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
-import com.github.mihone.redismq.redis.ConsumeHandler;
 import com.github.mihone.redismq.redis.RedisUtils;
-import com.github.mihone.redismq.reflect.MethodInvocationHandler;
 import com.github.mihone.redismq.annotation.Queue;
 import com.github.mihone.redismq.reflect.ClassUtils;
 import redis.clients.jedis.Jedis;
@@ -22,21 +21,22 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * <p>redismq starter.<p/>
- * you should use <code>RedisMQ.start()</code>  to start the mq,</br>
- * alse a bean provider and the main class is required.</br>
- * when started,some queue listener thread will be created,and three schedular thread will be created.</br>
- * <p>First is to check queue listener thread is working or not .if not recreated it.</p>
- * <p>Second is to resend the message in the dead queue.</p>
- * <p>Third is to resend the unack message.when consumer has acquired the message but some errors happened and the consumer did not ack the mq.
- * This thread will check the timeout message and resend it .</p>
+ * <p>redismq starter.
+ * <p>you should use {@code RedisMQ.start()}  to start the mq,
+ * alse a bean provider and the main class is required.
+ * when started,some queue listener thread will be created,and three schedular thread will be created.
+ * <p>    First is to check queue listener thread is working or not .if not recreated it.
+ * <p>    Second is to resend the message in the dead queue.
+ * <p>    Third is to resend the unack message.when consumer has acquired the message but some errors happened and the consumer did not ack the mq.
+ * This thread will check the timeout message and resend it .
  *<p>Note that target method will be invoke in the queue listener thread.
  * Therefore, it will never throw an exception but write a log and print its stacktrace.
  * All wrongs in the child threads are basic logs.
  * However,redismq just defined logger with slf4j but has not any implemention.
- * So you must use logback or log4j or other implemetions to get the log info.</p>
+ * So you must use logback or log4j or other implementions to get the log info.
+ *
  * @author mihone
- * @date 2019/10/5
+ * @since 2019/10/5
  */
 public final class RedisMQ {
 
@@ -89,7 +89,7 @@ public final class RedisMQ {
             Jedis jedis = RedisUtils.getJedis();
             List<String> keys = Cache.getCurrentCacheKeysFromMethodCache();
             keys.stream().forEach(key -> {
-                List<byte[]> backList = jedis.lrange(key.getBytes(), 0, -1);
+                List<byte[]> backList = jedis.lrange((key+ BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, -1);
                 backList.forEach(msg -> {
                     ObjectNode read = JsonUtils.read(msg);
                     if (null != read) {

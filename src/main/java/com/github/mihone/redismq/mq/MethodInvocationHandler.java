@@ -1,14 +1,13 @@
-package com.github.mihone.redismq.reflect;
+package com.github.mihone.redismq.mq;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.mihone.redismq.cache.Cache;
+import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.exception.BeanAcquiredException;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
-import com.github.mihone.redismq.mq.Message;
 import com.github.mihone.redismq.redis.RedisUtils;
-import com.github.mihone.redismq.cache.Cache;
-import com.github.mihone.redismq.config.BasicConfig;
-import com.github.mihone.redismq.mq.RedisMQ;
+import com.github.mihone.redismq.reflect.ClassUtils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.params.SetParams;
 
@@ -22,7 +21,7 @@ public final class MethodInvocationHandler {
 
     private static final Log log = Log.getLogger(MethodInvocationHandler.class);
 
-    public static void handler(Method method, String channel, String messageId) {
+    static void handler(Method method, String channel, String messageId) {
         Jedis jedis = RedisUtils.getJedis();
         Class<?> clazz = method.getDeclaringClass();
         Object apply = RedisMQ.getBeanProvider().apply(clazz);
@@ -37,7 +36,7 @@ public final class MethodInvocationHandler {
         }
     }
 
-    public static void handler(String channel) {
+    static void handler(String channel) {
         Method method = Cache.getFromMethodCache(channel);
         Class<?> clazz = method.getDeclaringClass();
         Object apply = RedisMQ.getBeanProvider().apply(clazz);

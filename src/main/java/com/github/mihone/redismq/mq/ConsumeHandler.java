@@ -1,7 +1,6 @@
-package com.github.mihone.redismq.redis;
+package com.github.mihone.redismq.mq;
 
 import com.github.mihone.redismq.log.Log;
-import com.github.mihone.redismq.reflect.MethodInvocationHandler;
 import com.github.mihone.redismq.cache.Cache;
 import redis.clients.jedis.JedisPubSub;
 

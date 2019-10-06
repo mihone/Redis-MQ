@@ -14,10 +14,23 @@ import redis.clients.jedis.Jedis;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Send and receive message utils
+ *
+ * @author mihone
+ * @since 2019/10/6
+ */
 public final class MqUtils {
     private static final RedisMqConfig REDIS_MQ_CONFIG = new RedisMqConfig();
     private static final Log log = Log.getLogger(MqUtils.class);
 
+    /**
+     * @param queue the name of queue
+     * @param data  data which want to send
+     * @throws IllegalArgumentException param can not be null
+     * @author mihone
+     * @since 2019/10/6
+     */
     public static void sendMessage(final String queue, final Object data) {
         if (data == null) {
             throw new IllegalArgumentException("message data can not be null");
@@ -41,6 +54,13 @@ public final class MqUtils {
 
     }
 
+    /**
+     * @param queue name of queue
+     * @return body of {@link Message}. Null if queue has not messages
+     * @throws IllegalArgumentException param can not be null
+     * @author mihone
+     * @since 2019/10/6
+     */
     public static Object receiveMessage(String queue) {
         if (queue == null) {
             throw new IllegalArgumentException("queue name can not be null");

@@ -26,10 +26,11 @@ public final class YmlUtils {
      * Get the value of the specified key.
      * return null if not exists.<br>
      * eg of key: spring.profiles.active
-     *
-     * @throws IllegalArgumentException  if the pattern of key is not correspond with rules<br>
+     * @param key key in the configuration file
+     * @return Object value of key.Null if not has key or value of key is null
+     * @throws IllegalArgumentException if the pattern of key is not correspond with rules<br>
      * @author mihone
-     * @date 2019/9/28 19:55
+     * @since 2019/9/28
      */
     public static Object getValue(final String key) {
         if (!key.matches("[a-zA-Z.-]+")) {
@@ -40,8 +41,11 @@ public final class YmlUtils {
 
     /**
      * init application config by .properties
+     *
+     * @return true if init success
+     * @throws FileNotFoundException if load application.properties failed
      * @author mihone
-     * @date 2019/9/28 23:48
+     * @since 2019/9/28
      */
     @SuppressWarnings("unchecked")
     private static boolean initByProperties() {
@@ -50,7 +54,7 @@ public final class YmlUtils {
         if (in != null) {
             try {
                 prop.load(in);
-                prop.forEach((key, value) ->basicMap.put((String) key, value));
+                prop.forEach((key, value) -> basicMap.put((String) key, value));
                 if (basicMap.get("spring.profiles.active") != null) {
                     InputStream extendIn = YmlUtils.class.getClassLoader().getResourceAsStream("application.properties");
                     if (extendIn != null) {
@@ -69,8 +73,11 @@ public final class YmlUtils {
 
     /**
      * init application config by .yml
+     *
+     * @return true if init success
+     * @throws FileNotFoundException if load application.yml failed
      * @author mihone
-     * @date 2019/9/28 23:48
+     * @since 2019/9/28
      */
     @SuppressWarnings("unchecked")
     private static boolean initByYml() {
