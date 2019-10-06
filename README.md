@@ -2,7 +2,7 @@
 
 ## 一、是什么
 
-一个简单，轻量，基于`Redis`的消息队列实现。
+一个简单，轻量，基于`Redis`的消息队列实现。采用注解方式快速配置，自动`ack`机制防丢失。
 
 ## 二、有什么用
 
@@ -24,6 +24,7 @@
 **注意，`jedis`必须是3.0版本以上**
 
 ### 2、配置`Redis`
+请使用`application.properties`或者`application.yml`进行配置
 
 ```properties
 redis.url=192.168.3.17
