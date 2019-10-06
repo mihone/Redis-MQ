@@ -24,6 +24,7 @@
 **注意，`jedis`必须是3.0版本以上**
 
 ### 2、配置`Redis`
+请使用`application.properties`或者`application.yml`进行配置
 
 ```properties
 redis.url=192.168.3.17
