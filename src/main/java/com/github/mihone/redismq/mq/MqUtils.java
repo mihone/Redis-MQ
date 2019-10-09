@@ -39,13 +39,9 @@ public final class MqUtils {
             throw new IllegalArgumentException("queue name can not be null");
         }
         String messageId = String.valueOf(IdGenerator.generateId());
-        String timeStamp = String.valueOf(System.currentTimeMillis());
+        long timeStamp = System.currentTimeMillis();
         String className = data.getClass().getName();
-        HashMap<String, Object> props = new HashMap<>();
-        props.put("className", className);
-        props.put("timestamp", timeStamp);
-        props.put("id", messageId);
-        JsonNode message = JsonUtils.addAttributes(data, props);
+        Message message = new Message(messageId,className,timeStamp,data);
         final byte[] msgBytes = JsonUtils.convertToBytes(message);
         if (msgBytes == null) {
             return;
@@ -72,13 +68,15 @@ public final class MqUtils {
             return null;
         } else {
             byte[] msg = jedis.rpoplpush((queue + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), (queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes());
-            ObjectNode node = JsonUtils.read(msg);
-            node.remove("timestamp");
-            node.remove("id");
-            String className = node.remove("className").asText();
+            if (msg == null) {
+                return null;
+            }
+            Message message = JsonUtils.convertObjectFromBytes(msg, Message.class);
+            String className = message.getClassName();
             try {
-
-                return JsonUtils.convertObjectFromJsonNode(node, Class.forName(className));
+                Object result = JsonUtils.convertObjectFromBytes(JsonUtils.convertToBytes(message.getBody()),Class.forName(className));
+                jedis.lrem((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(),0,msg);
+                return result;
             } catch (ClassNotFoundException e) {
                 log.error("can not resolve class.Class:{},Cause:{}", className, e);
                 throw new ClassResolveFailedException("can not resolve class.");

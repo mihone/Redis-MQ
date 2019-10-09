@@ -22,6 +22,7 @@ public class Message {
 
     private Object body;
 
+
     public Message(String messageId, String className, long timeStamp, Object body) {
         this.messageId = messageId;
         this.className = className;
@@ -31,6 +32,10 @@ public class Message {
 
     public String getMessageId() {
         return messageId;
+    }
+
+    public void setBody(Object body) {
+        this.body = body;
     }
 
     public String getClassName() {

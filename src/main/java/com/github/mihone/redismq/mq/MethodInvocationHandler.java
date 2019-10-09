@@ -59,27 +59,25 @@ public final class MethodInvocationHandler {
             msgBytes = jedis.rpoplpush((channel + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), (channel + BasicConfig.BACK_QUEUE_SUFFIX).getBytes());
         }
         Class<?> clazz = method.getDeclaringClass();
-        ObjectNode node = JsonUtils.read(msgBytes);
-        if (node == null) {
+        Message message = JsonUtils.convertObjectFromBytes(msgBytes, Message.class);
+        if (message == null) {
             log.debug("null when read byte[] to ObjectNode.byte[]:{}", msgBytes);
             return;
         }
-        long timeStamp = node.remove("timestamp").asLong();
-        String messageId = node.remove("id").asText();
-        String className = node.remove("className").asText();
+        String className = message.getClassName();
         Parameter[] parameters = method.getParameters();
         Object[] args = ClassUtils.getDefaultArgs(parameters);
         Class<?>[] argsClasses = ClassUtils.getArgClasses(parameters);
         try {
             Class<?> msgClass = Class.forName(className);
             Parameter param = parameters[0];
-            Object body = JsonUtils.convertObjectFromJsonNode(node, msgClass);
+            Object body = JsonUtils.convertObjectFromBytes(JsonUtils.convertToBytes(message.getBody()),Class.forName(className));
             if (body == null) {
-                log.debug("null when convertObjectFromJsonNode.node:{},Class:{}", msgBytes, msgClass);
+                log.debug("null when convert body.body:{},Class:{}", message.getBody(), msgClass);
                 return;
             }
             if (param.getType().equals(Message.class)) {
-                args[0] = new Message(messageId, className, timeStamp, body);
+                args[0] = message;
             } else if (param.getType().equals(clazz)) {
                 args[0] = body;
             }
@@ -99,7 +97,9 @@ public final class MethodInvocationHandler {
             log.error("can not found the class.Class:{},Cause:{}", className, e);
             Parameter param = parameters[0];
             if (param.getType().equals(Message.class)) {
-                args[0] = new Message(messageId, className, timeStamp, msgBytes);
+                message.setBody(JsonUtils.convertToBytes(message.getBody()));
+                //only if ClassNotFoundException happend ,body will be transfered to bytes.
+                args[0] = message;
             }
             Method method0 = getMethod0(clazz, method.getName(), argsClasses);
             if (method0 != null) {
