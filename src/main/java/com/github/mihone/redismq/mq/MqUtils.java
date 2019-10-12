@@ -13,6 +13,7 @@ import redis.clients.jedis.Jedis;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Send and receive message utils
@@ -21,7 +22,6 @@ import java.util.Map;
  * @since 2019/10/6
  */
 public final class MqUtils {
-    private static final RedisMqConfig REDIS_MQ_CONFIG = new RedisMqConfig();
     private static final Log log = Log.getLogger(MqUtils.class);
 
     /**
@@ -49,6 +49,20 @@ public final class MqUtils {
         send(queue, msgBytes, messageId);
 
     }
+    public static void sendDelayMessage(final String queue, final Object data, final long delay, final TimeUnit unit){
+        String messageId = String.valueOf(IdGenerator.generateId());
+        long timeStamp = System.currentTimeMillis();
+        String className = data.getClass().getName();
+        Message message = new Message(messageId,className,timeStamp,data);
+        long delayMills = unit.toMillis(delay);
+        Jedis jedis = RedisUtils.getJedis();
+        final byte[] msgBytes = JsonUtils.convertToBytes(message);
+        if (msgBytes == null) {
+            return;
+        }
+        jedis.zadd(queue.getBytes(), timeStamp+delayMills, msgBytes);
+    }
+
 
     /**
      * @param queue name of queue
@@ -98,7 +112,7 @@ public final class MqUtils {
                 return;
             }
             int count = 0;
-            while (count <= REDIS_MQ_CONFIG.getTimeout()) {
+            while (count <= RedisMqConfig.getTimeout()) {
                 long reply = jedis.publish(queue, messageId);
                 log.info("reply：" + reply);
                 try {

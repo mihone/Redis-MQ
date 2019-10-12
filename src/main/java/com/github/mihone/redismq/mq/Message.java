@@ -22,6 +22,8 @@ public class Message {
 
     private Object body;
 
+    public Message() {
+    }
 
     public Message(String messageId, String className, long timeStamp, Object body) {
         this.messageId = messageId;
