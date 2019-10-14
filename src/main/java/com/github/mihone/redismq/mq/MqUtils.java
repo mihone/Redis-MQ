@@ -1,17 +1,14 @@
 package com.github.mihone.redismq.mq;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.config.RedisMqConfig;
+import com.github.mihone.redismq.exception.ClassResolveFailedException;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
 import com.github.mihone.redismq.redis.RedisUtils;
 import com.github.mihone.redismq.thread.ThreadUtils;
-import com.github.mihone.redismq.exception.ClassResolveFailedException;
 import redis.clients.jedis.Jedis;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 

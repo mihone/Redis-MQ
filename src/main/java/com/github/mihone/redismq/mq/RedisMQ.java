@@ -5,6 +5,7 @@ import com.github.mihone.redismq.annotation.Queue;
 import com.github.mihone.redismq.cache.Cache;
 import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.config.RedisMqConfig;
+import com.github.mihone.redismq.interceptor.MonitorInterceptor;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
 import com.github.mihone.redismq.redis.RedisUtils;
@@ -58,13 +59,20 @@ public final class RedisMQ {
         EnableRedisMQMonitor monitor = clazz.getAnnotation(EnableRedisMQMonitor.class);
         if (monitor != null) {
             String[] delayQueues = RedisMqConfig.getDelayQueues();
+            MonitorInterceptor monitorInterceptor = (MonitorInterceptor)Cache.getFromBeanCache("MonitorInterceptor");
             Runnable delayQueueTask = () -> {
                 Jedis jedis = RedisUtils.getJedis();
-                for (String delayQueue : delayQueues) {
-                    String currentTime = String.valueOf(System.currentTimeMillis());
-                    Set<byte[]> messages = jedis.zrangeByScore((delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX).getBytes(), "-inf".getBytes(), currentTime.getBytes());
-                    messages.parallelStream().forEach(msg -> MqUtils.send(delayQueue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
-                    jedis.zremrangeByScore(delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX, "-inf", currentTime);
+                try {
+                    if (!monitorInterceptor.delay(jedis)) {
+                        return;
+                    }
+                    for (String delayQueue : delayQueues) {
+                        String currentTime = String.valueOf(System.currentTimeMillis());
+                        Set<byte[]> messages = jedis.zrangeByScore((delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX).getBytes(), "-inf".getBytes(), currentTime.getBytes());
+                        messages.parallelStream().forEach(msg -> MqUtils.send(delayQueue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
+                        jedis.zremrangeByScore(delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX, "-inf", currentTime);
+                    }
+                } finally {
                     jedis.close();
                 }
             };
@@ -76,15 +84,22 @@ public final class RedisMQ {
             Runnable deadMessageTask = () -> {
                 String[] queues = RedisMqConfig.getQueues();
                 Jedis jedis = RedisUtils.getJedis();
-                Arrays.stream(queues).forEach(queue -> {
-                    int count = Integer.parseInt(jedis.pubsubNumSub(queue).get(queue));
-                    if (count > 0) {
-                        List<byte[]> deadMessages = jedis.lrange((queue + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), 0, -1);
-                        deadMessages.parallelStream().forEach(msg -> MqUtils.send(queue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
-                        jedis.ltrim(queue + BasicConfig.DEAD_QUEUE_SUFFIX, deadMessages.size(), -1);
+                try {
+                    if (!monitorInterceptor.dead(jedis)) {
+                        return;
                     }
-                });
-                jedis.close();
+                    Arrays.stream(queues).forEach(queue -> {
+                        int count = Integer.parseInt(jedis.pubsubNumSub(queue).get(queue));
+                        if (count > 0) {
+                            List<byte[]> deadMessages = jedis.lrange((queue + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), 0, -1);
+                            deadMessages.parallelStream().forEach(msg -> MqUtils.send(queue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
+                            jedis.ltrim(queue + BasicConfig.DEAD_QUEUE_SUFFIX, deadMessages.size(), -1);
+                        }
+                    });
+                } finally {
+                    jedis.close();
+                }
+
             };
             ScheduledFuture<?> deadMessageFuture = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(deadMessageTask, 30000, RedisMqConfig.getDeadCheckInterval(), TimeUnit.MILLISECONDS);
             monitorNames.put(BasicConfig.DEAD_QUEUE_SUFFIX, deadMessageTask);
@@ -95,19 +110,25 @@ public final class RedisMQ {
             Runnable backMessageTask = () -> {
                 String[] queues = RedisMqConfig.getQueues();
                 Jedis jedis = RedisUtils.getJedis();
-                Arrays.stream(queues).forEach(queue -> {
-                    List<byte[]> backMessages = jedis.lrange((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, -1);
-                    backMessages.parallelStream().forEach(msg -> {
-                        Message message = JsonUtils.convertObjectFromBytes(msg, Message.class);
-                        long timeStamp = message.getTimeStamp();
-                        if (System.currentTimeMillis() - timeStamp > 5 * 60 * 1000) {
-                            MqUtils.send(queue, msg, message.getMessageId());
-                        }
-                        jedis.lrem((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, msg);
-                    });
+                try {
+                    if (!monitorInterceptor.back(jedis)) {
+                        return;
+                    }
+                    Arrays.stream(queues).forEach(queue -> {
+                        List<byte[]> backMessages = jedis.lrange((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, -1);
+                        backMessages.parallelStream().forEach(msg -> {
+                            Message message = JsonUtils.convertObjectFromBytes(msg, Message.class);
+                            long timeStamp = message.getTimeStamp();
+                            if (System.currentTimeMillis() - timeStamp > 5 * 60 * 1000) {
+                                MqUtils.send(queue, msg, message.getMessageId());
+                            }
+                            jedis.lrem((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, msg);
+                        });
 
-                });
-                jedis.close();
+                    });
+                } finally {
+                    jedis.close();
+                }
             };
             ScheduledFuture<?> backMessageFuture = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(backMessageTask, 0, RedisMqConfig.getBackCheckInterval(), TimeUnit.MILLISECONDS);
             monitorNames.put(BasicConfig.BACK_QUEUE_SUFFIX, backMessageTask);
@@ -117,6 +138,7 @@ public final class RedisMQ {
 
 
         List<Class<?>> classes = ClassUtils.getAllClasses(clazz);
+        init(classes);
         List<Method> methodList = classes.parallelStream().filter(ClassUtils::isRealClass).flatMap(c -> Arrays.stream(c.getMethods())).filter(m -> m.getAnnotation(Queue.class) != null).collect(Collectors.toList());
         if (methodList.size() == 0) {
             log.info("there is no queue needs to listen");
@@ -169,6 +191,19 @@ public final class RedisMQ {
 
         log.info("check queue listener status thread  is created...");
         log.info("redismq is started...");
+    }
+
+    private static void init(List<Class<?>> classes) {
+        List<Class<?>> interceptor = classes.stream().filter(clazz -> MonitorInterceptor.class.isAssignableFrom(clazz)).collect(Collectors.toList());
+        if (interceptor.size()>1) {
+            throw new IllegalArgumentException("Implemention of MonitorInterceptor can be only one ");
+        }
+        try {
+            Cache.writeToBeanCache("MonitorInterceptor",interceptor.get(0).newInstance());
+        } catch (InstantiationException |IllegalAccessException e) {
+           log.error("get instance of interceptor error..Cause:",e);
+        }
+
     }
 
     public static Function getBeanProvider() {
