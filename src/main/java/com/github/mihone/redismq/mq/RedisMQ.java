@@ -1,16 +1,14 @@
 package com.github.mihone.redismq.mq;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.mihone.redismq.EnableRedisMQMonitor;
+import com.github.mihone.redismq.annotation.EnableRedisMQMonitor;
+import com.github.mihone.redismq.annotation.Queue;
 import com.github.mihone.redismq.cache.Cache;
 import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.config.RedisMqConfig;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
 import com.github.mihone.redismq.redis.RedisUtils;
-import com.github.mihone.redismq.annotation.Queue;
 import com.github.mihone.redismq.reflect.ClassUtils;
-import com.github.mihone.redismq.yaml.YmlUtils;
 import redis.clients.jedis.Jedis;
 
 import java.lang.reflect.Method;
@@ -20,18 +18,21 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * <p>redismq starter.
+ * <p>Redis-MQ starter.
  * <p>you should use {@code RedisMQ.start()}  to start the mq,
- * alse a bean provider and the main class is required.
- * when started,some queue listener thread will be created,and three schedular thread will be created.
- * <p>    First is to check queue listener thread is working or not .if not recreated it.
- * <p>    Second is to resend the message in the dead queue.
- * <p>    Third is to resend the unack message.when consumer has acquired the message but some errors happened and the consumer did not ack the mq.
- * This thread will check the timeout message and resend it .
+ * else a bean provider and the main class is required.
+ * when started,some queue listener thread will be created to listen the queue。
+ * Also,a queue listener check thread will be created to check queue listener is working or not.
+ * <p>{@code @EnableRedisMQMonitor} is a symbol to start monitor. The monitor has the following features:
+ * <p> Check delay messages which are ready to send.
+ * <p> Resend the message in the dead queue.
+ * <p> Resend the unack message.when consumer has acquired the message but some errors happened and the consumer did not ack the mq.The monitor will check the timeout message and resend it .
+ * The monitor can run alone.Therefore,it is necessary to definite queue name and delay queue name in the application.yml/application.properties used {@code redis.mq.queues} and {@code redis.mq.delayQueues}.
+ * Values of those two keys are array and separate by ",".
  * <p>Note that target method will be invoke in the queue listener thread.
  * Therefore, it will never throw an exception but write a log and print its stacktrace.
  * All wrongs in the child threads are basic logs.
- * However,redismq just defined logger with slf4j but has not any implemention.
+ * However,Redis-MQ just defined logger with slf4j but has not any implemention.
  * So you must use logback or log4j or other implementions to get the log info.
  *
  * @author mihone
@@ -57,14 +58,12 @@ public final class RedisMQ {
         EnableRedisMQMonitor monitor = clazz.getAnnotation(EnableRedisMQMonitor.class);
         if (monitor != null) {
             String[] delayQueues = RedisMqConfig.getDelayQueues();
-            Runnable delayQueueTask =  () -> {
+            Runnable delayQueueTask = () -> {
                 Jedis jedis = RedisUtils.getJedis();
                 for (String delayQueue : delayQueues) {
                     String currentTime = String.valueOf(System.currentTimeMillis());
                     Set<byte[]> messages = jedis.zrangeByScore((delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX).getBytes(), "-inf".getBytes(), currentTime.getBytes());
-                    messages.parallelStream().forEach(msg -> {
-                        MqUtils.send(delayQueue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId());
-                    });
+                    messages.parallelStream().forEach(msg -> MqUtils.send(delayQueue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
                     jedis.zremrangeByScore(delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX, "-inf", currentTime);
                     jedis.close();
                 }
@@ -74,16 +73,14 @@ public final class RedisMQ {
             monitors.put(delayQueueTask, delayQueueFuture);
             log.info("delay queue monitor is created....");
 
-           Runnable deadMessageTask =  () -> {
+            Runnable deadMessageTask = () -> {
                 String[] queues = RedisMqConfig.getQueues();
                 Jedis jedis = RedisUtils.getJedis();
                 Arrays.stream(queues).forEach(queue -> {
                     int count = Integer.parseInt(jedis.pubsubNumSub(queue).get(queue));
                     if (count > 0) {
                         List<byte[]> deadMessages = jedis.lrange((queue + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), 0, -1);
-                        deadMessages.parallelStream().forEach(msg -> {
-                            MqUtils.send(queue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId());
-                        });
+                        deadMessages.parallelStream().forEach(msg -> MqUtils.send(queue, msg, JsonUtils.convertObjectFromBytes(msg, Message.class).getMessageId()));
                         jedis.ltrim(queue + BasicConfig.DEAD_QUEUE_SUFFIX, deadMessages.size(), -1);
                     }
                 });
@@ -123,13 +120,13 @@ public final class RedisMQ {
         List<Method> methodList = classes.parallelStream().filter(ClassUtils::isRealClass).flatMap(c -> Arrays.stream(c.getMethods())).filter(m -> m.getAnnotation(Queue.class) != null).collect(Collectors.toList());
         if (methodList.size() == 0) {
             log.info("there is no queue needs to listen");
-        }else{
+        } else {
             threadSize = methodList.size();
             for (Method method : methodList) {
                 Queue queue = method.getAnnotation(Queue.class);
                 String queueName = queue.value();
                 Cache.writeToMethodCache(queueName, method);
-                Runnable task  = () -> {
+                Runnable task = () -> {
                     Jedis jedis = RedisMQInitializer.getJedis();
                     jedis.subscribe(new ConsumeHandler(), queueName);
                 };
@@ -140,31 +137,29 @@ public final class RedisMQ {
         }
 
 
-
-
         RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(() -> {
-            queueListeners.entrySet().forEach(entry->{
+            queueListeners.entrySet().forEach(entry -> {
                 if (entry.getValue().isDone()) {
                     Future future = RedisMQInitializer.fixedThreadPool.submit(entry.getKey());
                     entry.setValue(future);
                 }
             });
-            monitorNames.entrySet().forEach(entry->{
-                if (monitors.get(entry.getValue()).isDone()) {
-                    switch (entry.getKey()){
-                        case BasicConfig.BACK_QUEUE_SUFFIX:{
-                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(entry.getValue(), 0, RedisMqConfig.getBackCheckInterval(), TimeUnit.MILLISECONDS);
-                            monitors.put(entry.getValue(), future);
+            monitorNames.forEach((key, value) -> {
+                if (monitors.get(value).isDone()) {
+                    switch (key) {
+                        case BasicConfig.BACK_QUEUE_SUFFIX: {
+                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(value, 0, RedisMqConfig.getBackCheckInterval(), TimeUnit.MILLISECONDS);
+                            monitors.put(value, future);
                             break;
                         }
-                        case BasicConfig.DEAD_QUEUE_SUFFIX:{
-                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(entry.getValue(), 0, RedisMqConfig.getDeadCheckInterval(), TimeUnit.MILLISECONDS);
-                            monitors.put(entry.getValue(), future);
+                        case BasicConfig.DEAD_QUEUE_SUFFIX: {
+                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(value, 0, RedisMqConfig.getDeadCheckInterval(), TimeUnit.MILLISECONDS);
+                            monitors.put(value, future);
                             break;
                         }
-                        case BasicConfig.DELAY_QUEUE_SUFFIX:{
-                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(entry.getValue(), 0, RedisMqConfig.getDelayCheckInterval(), TimeUnit.MILLISECONDS);
-                            monitors.put(entry.getValue(), future);
+                        case BasicConfig.DELAY_QUEUE_SUFFIX: {
+                            ScheduledFuture<?> future = RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(value, 0, RedisMqConfig.getDelayCheckInterval(), TimeUnit.MILLISECONDS);
+                            monitors.put(value, future);
                             break;
                         }
                     }
