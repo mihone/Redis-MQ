@@ -36,6 +36,7 @@ public final class MethodInvocationHandler {
         }
     }
 
+    @Deprecated
     static void handler(String channel) {
         Method method = Cache.getFromMethodCache(channel);
         Class<?> clazz = method.getDeclaringClass();
@@ -57,6 +58,9 @@ public final class MethodInvocationHandler {
             msgBytes = jedis.rpoplpush(channel.getBytes(), (channel + BasicConfig.BACK_QUEUE_SUFFIX).getBytes());
         } else {
             msgBytes = jedis.rpoplpush((channel + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), (channel + BasicConfig.BACK_QUEUE_SUFFIX).getBytes());
+        }
+        if(msgBytes==null){
+            return ;
         }
         Class<?> clazz = method.getDeclaringClass();
         Message message = JsonUtils.convertObjectFromBytes(msgBytes, Message.class);
