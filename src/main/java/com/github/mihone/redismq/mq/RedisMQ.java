@@ -52,9 +52,32 @@ public final class RedisMQ {
         log.info("redismq is starting...");
         RedisMQ.beanProvider = beanProvider;
 
+
         Map<Runnable, Future> queueListeners = new HashMap<>();
         Map<String, Runnable> monitorNames = new HashMap<>();
         Map<Runnable, Future> monitors = new HashMap<>();
+
+        List<Class<?>> classes = ClassUtils.getAllClasses(clazz);
+        init(classes);
+        List<Method> methodList = classes.parallelStream().filter(ClassUtils::isRealClass).flatMap(c -> Arrays.stream(c.getMethods())).filter(m -> m.getAnnotation(Queue.class) != null).collect(Collectors.toList());
+        if (methodList.size() == 0) {
+            threadSize=1;
+            log.info("there is no queue needs to listen");
+        } else {
+            threadSize = methodList.size();
+            for (Method method : methodList) {
+                Queue queue = method.getAnnotation(Queue.class);
+                String queueName = queue.value();
+                Cache.writeToMethodCache(queueName, method);
+                Runnable task = () -> {
+                    Jedis jedis = RedisMQInitializer.getJedis();
+                    jedis.subscribe(new ConsumeHandler(), queueName);
+                };
+                Future<?> future = RedisMQInitializer.fixedThreadPool.submit(task);
+                queueListeners.put(task, future);
+            }
+            log.info("queue listeners is created");
+        }
 
         EnableRedisMQMonitor monitor = clazz.getAnnotation(EnableRedisMQMonitor.class);
         if (monitor != null) {
@@ -135,29 +158,6 @@ public final class RedisMQ {
             monitors.put(backMessageTask, backMessageFuture);
             log.info("Back queue message monitor is created...");
         }
-
-
-        List<Class<?>> classes = ClassUtils.getAllClasses(clazz);
-        init(classes);
-        List<Method> methodList = classes.parallelStream().filter(ClassUtils::isRealClass).flatMap(c -> Arrays.stream(c.getMethods())).filter(m -> m.getAnnotation(Queue.class) != null).collect(Collectors.toList());
-        if (methodList.size() == 0) {
-            log.info("there is no queue needs to listen");
-        } else {
-            threadSize = methodList.size();
-            for (Method method : methodList) {
-                Queue queue = method.getAnnotation(Queue.class);
-                String queueName = queue.value();
-                Cache.writeToMethodCache(queueName, method);
-                Runnable task = () -> {
-                    Jedis jedis = RedisMQInitializer.getJedis();
-                    jedis.subscribe(new ConsumeHandler(), queueName);
-                };
-                Future<?> future = RedisMQInitializer.fixedThreadPool.submit(task);
-                queueListeners.put(task, future);
-            }
-            log.info("queue listeners is created");
-        }
-
 
         RedisMQInitializer.scheduledThreadPool.scheduleAtFixedRate(() -> {
             queueListeners.entrySet().forEach(entry -> {
