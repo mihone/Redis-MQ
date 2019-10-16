@@ -57,7 +57,8 @@ public final class MqUtils {
         if (msgBytes == null) {
             return;
         }
-        jedis.zadd(queue.getBytes(), timeStamp+delayMills, msgBytes);
+        jedis.zadd((queue+BasicConfig.DELAY_QUEUE_SUFFIX).getBytes(),timeStamp+delayMills, msgBytes);
+        jedis.close();
     }
 
 
@@ -111,7 +112,6 @@ public final class MqUtils {
             int count = 0;
             while (count <= RedisMqConfig.getTimeout()) {
                 long reply = jedis.publish(queue, messageId);
-                log.info("reply：" + reply);
                 try {
                     if (reply == 0) {
                         count++;

@@ -10,7 +10,6 @@ public class ConsumeHandler extends JedisPubSub {
     private static final Log log = Log.getLogger(ConsumeHandler.class);
     @Override
     public void onMessage(String channel, String message) {
-        log.info("监听到...开始执行"+channel+",message:"+message);
         Method method = Cache.getFromMethodCache(channel);
         try {
             MethodInvocationHandler.handler(method,channel,message);
