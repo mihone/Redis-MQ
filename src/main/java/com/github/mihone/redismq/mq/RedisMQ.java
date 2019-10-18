@@ -197,6 +197,8 @@ public final class RedisMQ {
         List<Class<?>> interceptor = classes.stream().filter(clazz -> MonitorInterceptor.class.isAssignableFrom(clazz)).collect(Collectors.toList());
         if (interceptor.size()>1) {
             throw new IllegalArgumentException("Implemention of MonitorInterceptor can be only one ");
+        }else if (interceptor.size()==1){
+            Cache.writeToBeanCache("MonitorInterceptor", new MonitorInterceptor() {});
         }
         try {
             Cache.writeToBeanCache("MonitorInterceptor",interceptor.get(0).newInstance());
