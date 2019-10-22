@@ -55,8 +55,9 @@ public final class YmlUtils {
             try {
                 prop.load(in);
                 prop.forEach((key, value) -> basicMap.put((String) key, value));
-                if (basicMap.get("spring.profiles.active") != null) {
-                    InputStream extendIn = YmlUtils.class.getClassLoader().getResourceAsStream("application-" + basicMap.get("spring.profiles.active") + ".properties");
+                Object active = basicMap.get("spring.profiles.active");
+                if (active != null) {
+                    InputStream extendIn = YmlUtils.class.getClassLoader().getResourceAsStream("application-" + active + ".properties");
                     if (extendIn != null) {
                         prop.load(extendIn);
                         prop.forEach((key, value) -> extendMap.put((String) key, value));
