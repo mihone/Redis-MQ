@@ -73,7 +73,7 @@ public final class ClassUtils {
     }
 
     private static List<Class<?>> getClasses(String root, File rootDictionary) {
-        List<Class<?>> list = Arrays.stream(rootDictionary.listFiles(file -> !file.isDirectory())).map(file -> {
+        List<Class<?>> list = Arrays.stream(rootDictionary.listFiles(file -> !file.isDirectory())).filter(file->file.getName().contains(".class")).map(file -> {
             try {
                 String name = root + "." + file.getName().substring(0, file.getName().lastIndexOf("."));
                 return Class.forName(name);
