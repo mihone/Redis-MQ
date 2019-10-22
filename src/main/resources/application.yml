@@ -1,4 +1,0 @@
-redis:
-  url: 192.168.3.17
-  port: 6379
-  password: newpass
