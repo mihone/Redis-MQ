@@ -1,6 +1,7 @@
 package com.github.mihone.redismq.reflect;
 
 import com.github.mihone.redismq.exception.ClassResolveFailedException;
+import com.github.mihone.redismq.log.Log;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public final class ClassUtils {
+    private static final Log log = Log.getLogger(ClassUtils.class);
     /**
      * Get all classes by recursive under the dictionary which the given class in
      *
@@ -76,6 +78,7 @@ public final class ClassUtils {
                 String name = root + "." + file.getName().substring(0, file.getName().lastIndexOf("."));
                 return Class.forName(name);
             } catch (ClassNotFoundException e) {
+                log.error("Class not found.Cause:",e);
                 throw new RuntimeException();
             }
         }).collect(Collectors.toList());
