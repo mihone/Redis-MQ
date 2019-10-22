@@ -198,14 +198,14 @@ public final class RedisMQ {
         if (interceptor.size()>1) {
             throw new IllegalArgumentException("Implemention of MonitorInterceptor can be only one ");
         }else if (interceptor.size()==1){
-            Cache.writeToBeanCache("MonitorInterceptor", new MonitorInterceptor() {});
+            try {
+                Cache.writeToBeanCache("MonitorInterceptor",interceptor.get(0).newInstance());
+            } catch (InstantiationException |IllegalAccessException e) {
+                log.error("get instance of interceptor error..Cause:",e);
+            }
+            return;
         }
-        try {
-            Cache.writeToBeanCache("MonitorInterceptor",interceptor.get(0).newInstance());
-        } catch (InstantiationException |IllegalAccessException e) {
-           log.error("get instance of interceptor error..Cause:",e);
-        }
-
+        Cache.writeToBeanCache("MonitorInterceptor", new MonitorInterceptor() {});
     }
 
     public static Function getBeanProvider() {
