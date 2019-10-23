@@ -5,7 +5,6 @@ import com.github.mihone.redismq.annotation.Queue;
 import com.github.mihone.redismq.cache.Cache;
 import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.config.RedisMqConfig;
-import com.github.mihone.redismq.interceptor.MonitorInterceptor;
 import com.github.mihone.redismq.json.JsonUtils;
 import com.github.mihone.redismq.log.Log;
 import com.github.mihone.redismq.redis.RedisUtils;
@@ -58,7 +57,6 @@ public final class RedisMQ {
         Map<Runnable, Future> monitors = new HashMap<>();
 
         List<Class<?>> classes = ClassUtils.getAllClasses(clazz);
-        init(classes);
         List<Method> methodList = classes.parallelStream().filter(ClassUtils::isRealClass).flatMap(c -> Arrays.stream(c.getMethods())).filter(m -> m.getAnnotation(Queue.class) != null).collect(Collectors.toList());
         if (methodList.size() == 0) {
             threadSize=1;
@@ -82,13 +80,9 @@ public final class RedisMQ {
         EnableRedisMQMonitor monitor = clazz.getAnnotation(EnableRedisMQMonitor.class);
         if (monitor != null) {
             String[] delayQueues = RedisMqConfig.getDelayQueues();
-            MonitorInterceptor monitorInterceptor = (MonitorInterceptor)Cache.getFromBeanCache("MonitorInterceptor");
             Runnable delayQueueTask = () -> {
                 Jedis jedis = RedisUtils.getJedis();
                 try {
-                    if (!monitorInterceptor.delay(jedis)) {
-                        return;
-                    }
                     for (String delayQueue : delayQueues) {
                         String currentTime = String.valueOf(System.currentTimeMillis());
                         Set<byte[]> messages = jedis.zrangeByScore((delayQueue + BasicConfig.DELAY_QUEUE_SUFFIX).getBytes(), "-inf".getBytes(), currentTime.getBytes());
@@ -108,9 +102,6 @@ public final class RedisMQ {
                 String[] queues = RedisMqConfig.getQueues();
                 Jedis jedis = RedisUtils.getJedis();
                 try {
-                    if (!monitorInterceptor.dead(jedis)) {
-                        return;
-                    }
                     Arrays.stream(queues).forEach(queue -> {
                         int count = Integer.parseInt(jedis.pubsubNumSub(queue).get(queue));
                         if (count > 0) {
@@ -134,9 +125,6 @@ public final class RedisMQ {
                 String[] queues = RedisMqConfig.getQueues();
                 Jedis jedis = RedisUtils.getJedis();
                 try {
-                    if (!monitorInterceptor.back(jedis)) {
-                        return;
-                    }
                     Arrays.stream(queues).forEach(queue -> {
                         List<byte[]> backMessages = jedis.lrange((queue + BasicConfig.BACK_QUEUE_SUFFIX).getBytes(), 0, -1);
                         backMessages.parallelStream().forEach(msg -> {
@@ -193,20 +181,7 @@ public final class RedisMQ {
         log.info("redismq is started...");
     }
 
-    private static void init(List<Class<?>> classes) {
-        List<Class<?>> interceptor = classes.stream().filter(clazz -> MonitorInterceptor.class.isAssignableFrom(clazz)).collect(Collectors.toList());
-        if (interceptor.size()>1) {
-            throw new IllegalArgumentException("Implemention of MonitorInterceptor can be only one ");
-        }else if (interceptor.size()==1){
-            try {
-                Cache.writeToBeanCache("MonitorInterceptor",interceptor.get(0).newInstance());
-            } catch (InstantiationException |IllegalAccessException e) {
-                log.error("get instance of interceptor error..Cause:",e);
-            }
-            return;
-        }
-        Cache.writeToBeanCache("MonitorInterceptor", new MonitorInterceptor() {});
-    }
+
 
     public static Function getBeanProvider() {
         return beanProvider;
