@@ -3,10 +3,11 @@ package com.github.mihone.redismq.json;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.ValueNode;
 import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.mihone.redismq.log.Log;
 
 import java.io.IOException;
@@ -17,6 +18,12 @@ import java.util.Map;
 public final class JsonUtils {
     private static final ObjectMapper om = new ObjectMapper();
     private static final Log log = Log.getLogger(JsonUtils.class);
+
+    static {
+        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        om.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        om.registerModule(new JavaTimeModule());
+    }
 
     private JsonUtils() {
     }
@@ -43,7 +50,7 @@ public final class JsonUtils {
         JsonNode jsonNode = om.valueToTree(src);
         HashMap<String, JsonNode> properties = new HashMap<>();
         attrs.forEach((key, value) -> properties.put(key, om.valueToTree(value)));
-            return ((ObjectNode) jsonNode).setAll(properties);
+        return ((ObjectNode) jsonNode).setAll(properties);
     }
 
     public static JsonNode addAttribute(Object src, String fieldName, Object fieldValue) {

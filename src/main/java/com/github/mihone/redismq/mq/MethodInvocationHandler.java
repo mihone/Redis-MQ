@@ -1,6 +1,5 @@
 package com.github.mihone.redismq.mq;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.mihone.redismq.cache.Cache;
 import com.github.mihone.redismq.config.BasicConfig;
 import com.github.mihone.redismq.exception.BeanAcquiredException;
@@ -36,6 +35,7 @@ public final class MethodInvocationHandler {
         }
     }
 
+    @Deprecated
     static void handler(String channel) {
         Method method = Cache.getFromMethodCache(channel);
         Class<?> clazz = method.getDeclaringClass();
