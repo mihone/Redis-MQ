@@ -58,6 +58,9 @@ public final class MethodInvocationHandler {
         } else {
             msgBytes = jedis.rpoplpush((channel + BasicConfig.DEAD_QUEUE_SUFFIX).getBytes(), (channel + BasicConfig.BACK_QUEUE_SUFFIX).getBytes());
         }
+        if(msgBytes==null){
+            return ;
+        }
         Class<?> clazz = method.getDeclaringClass();
         Message message = JsonUtils.convertObjectFromBytes(msgBytes, Message.class);
         if (message == null) {
