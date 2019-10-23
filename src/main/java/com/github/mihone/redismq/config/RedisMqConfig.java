@@ -48,7 +48,7 @@ public class RedisMqConfig {
         return DEFAULT_DEAD_CHECK_INTERVAL;
     }
 
-    public static long getDelayHeartBeatInterval() {
+    public static long getHeartBeatInterval() {
         return heartBeatInterval;
     }
 

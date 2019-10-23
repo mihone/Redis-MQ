@@ -187,7 +187,7 @@ public final class RedisMQ {
                     }
                 }
             });
-        }, 60, 60, TimeUnit.SECONDS);
+        }, 60, RedisMqConfig.getHeartBeatInterval(), TimeUnit.SECONDS);
 
         log.info("check queue listener status thread  is created...");
         log.info("redismq is started...");
