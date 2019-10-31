@@ -19,7 +19,7 @@
 <dependency>
     <groupId>com.github.mihone</groupId>
     <artifactId>redis-mq</artifactId>
-    <version>0.1</version>
+    <version>0.1.5</version>
 </dependency>
 ```
 
